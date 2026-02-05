@@ -1,0 +1,348 @@
+#root {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 2rem;
+  text-align: center;
+}
+
+.logo {
+  height: 6em;
+  padding: 1.5em;
+  will-change: filter;
+  transition: filter 300ms;
+}
+.logo:hover {
+  filter: drop-shadow(0 0 2em #646cffaa);
+}
+.logo.react:hover {
+  filter: drop-shadow(0 0 2em #61dafbaa);
+}
+
+@keyframes logo-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  a:nth-of-type(2) .logo {
+    animation: logo-spin infinite 20s linear;
+  }
+}
+
+.card {
+  padding: 2em;
+}
+
+.read-the-docs {
+  color: #888;
+}
+
+/* Modern File Explorer Styles */
+.App {
+  min-height: 100vh;
+  background: #000;
+  color: #fff;
+  display: flex;
+  align-items: flex-start;
+  font-family: 'Segoe UI', Arial, sans-serif;
+}
+
+.App.app-flex {
+  min-height: 100vh;
+  background: #000;
+  color: #fff;
+  display: flex;
+  align-items: flex-start;
+  font-family: 'Segoe UI', Arial, sans-serif;
+}
+
+.explorer-container {
+  background: #000000;
+  border-radius: 18px;
+  box-shadow: 0 4px 24px 0 rgb(0, 0, 0);
+  width: 340px; /* Fixed width for file explorer */
+  max-width: 420px;
+  min-width: 260px;
+  flex: 0 0 340px; /* Prevent shrinking/growing */
+  padding: 28px 32px 24px 32px;
+  margin: 32px 0 32px 32px;
+  color: #fff;
+  box-sizing: border-box;
+  min-height: 60vh;
+  max-height: 90vh;
+  overflow-y: hidden; /* Changed from auto to hidden */
+  transition: max-width 0.2s, min-width 0.2s;
+  display: flex;
+  flex-direction: column;
+}
+.explorer-container::-webkit-scrollbar {
+  display: none; /* Chrome, Safari, Opera */
+}
+
+.file-content-view {
+  background: #000000;
+  color: #fff;
+  border-radius: 18px;
+  box-shadow: 0 4px 24px 0 rgba(0,0,0,0.18);
+  margin: 32px 32px 32px 0;
+  padding: 24px 24px 16px 24px;
+  min-width: 320px;
+  max-width: 60vw;
+  flex: 2 1 480px;
+  min-height: 60vh;
+  max-height: 90vh;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+.file-content-view.empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #000000;
+  font-size: 1.1em;
+  font-style: italic;
+}
+.file-content-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-weight: 600;
+  margin-bottom: 12px;
+}
+.file-modal-close {
+  background: none;
+  border: none;
+  color: #fff;
+  font-size: 1.2em;
+  cursor: pointer;
+}
+.file-modal-text {
+  background: #222;
+  color: #fff;
+  padding: 12px;
+  border-radius: 6px;
+  font-family: 'Consolas', monospace;
+  font-size: 1em;
+  overflow-x: auto;
+  overflow-y: auto;
+  max-height: 60vh;
+  white-space: pre-wrap;
+}
+
+@media (max-width: 700px) {
+  .explorer-container {
+    max-width: 98vw;
+    min-width: 0;
+    margin: 16px 0 16px 0;
+    padding: 16px 8px 16px 8px;
+  }
+}
+
+@media (max-width: 900px) {
+  .App.app-flex {
+    flex-direction: column;
+  }
+  .explorer-container, .file-content-view {
+    max-width: 98vw;
+    min-width: 0;
+    margin: 16px 0 0 0;
+    padding: 16px 8px 16px 8px;
+  }
+}
+
+.explorer-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  position: relative;
+  margin-bottom: 18px;
+  border-radius: 12px 12px 0 0;
+  z-index: 10;
+  background: #000;
+  padding-bottom: 8px;
+  box-shadow: 0 2px 8px 0 rgba(0,0,0,0.15);
+  border-bottom: 1px solid #222;
+  min-height: 56px;
+  flex-shrink: 0; /* Prevent header from shrinking */
+}
+
+.explorer-header h2 {
+  margin: 0;
+  font-size: 1.4rem;
+  font-weight: 600;
+  color: #fff;
+}
+
+.up-btn {
+  background: #fff;
+  color: #000;
+  border: none;
+  border-radius: 6px;
+  padding: 6px 16px;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.up-btn:disabled {
+  background: #333;
+  color: #888;
+  cursor: not-allowed;
+}
+
+.explorer-path {
+  font-size: 0.98rem;
+  color: #fff;
+  margin-left: auto;
+  font-family: 'Consolas', monospace;
+  background: #000000;
+  padding: 2px 8px;
+  border-radius: 4px;
+  max-width: 220px;
+  overflow-x: auto;
+}
+
+.explorer-content {
+  min-height: 180px;
+  margin-top: 0;
+  padding-top: 0;
+  border-radius: 0 0 12px 12px;
+  background: #000000;
+  box-shadow: 0 4px 24px 0 rgba(0,0,0,0.10);
+  overflow-y: auto; /* Enable scrolling only on content */
+  flex: 1; /* Take remaining space */
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none;  /* IE and Edge */
+}
+.explorer-content::-webkit-scrollbar {
+  display: none; /* Chrome, Safari, Opera */
+}
+
+.explorer-loading {
+  color: #fff;
+  font-weight: 500;
+  margin-bottom: 10px;
+}
+
+.explorer-error {
+  color: #fff;
+  background: #c00;
+  font-weight: 500;
+  margin-bottom: 10px;
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+.explorer-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  margin-top: 0;
+}
+
+.explorer-list ul {
+  padding-left: 0;
+}
+
+.explorer-list li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 0 7px 2px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.13s;
+  justify-content: flex-start;
+}
+
+.explorer-list li:hover {
+  background: #222;
+}
+
+.explorer-selected {
+  background: #333 !important;
+  color: #fff !important;
+}
+
+.explorer-expand {
+  display: inline-block;
+  width: 18px;
+  text-align: center;
+  font-size: 1.1em;
+  color: #fff;
+  user-select: none;
+}
+
+.explorer-folder {
+  font-weight: 600;
+  color: #fff;
+}
+
+.explorer-file {
+  color: #fff;
+}
+
+.explorer-icon {
+  font-size: 1.2em;
+}
+
+.explorer-name {
+  flex: 1;
+  word-break: break-all;
+  text-align: left;
+}
+
+.file-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0,0,0,0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+.file-modal-content {
+  background: #111;
+  color: #fff;
+  border-radius: 10px;
+  padding: 24px 20px 16px 20px;
+  min-width: 320px;
+  max-width: 80vw;
+  max-height: 80vh;
+  box-shadow: 0 8px 32px 0 rgba(0,0,0,0.25);
+  display: flex;
+  flex-direction: column;
+}
+.file-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-weight: 600;
+  margin-bottom: 12px;
+}
+.file-modal-close {
+  background: none;
+  border: none;
+  color: #fff;
+  font-size: 1.2em;
+  cursor: pointer;
+}
+.file-modal-text {
+  background: #222;
+  color: #fff;
+  padding: 12px;
+  border-radius: 6px;
+  font-family: 'Consolas', monospace;
+  font-size: 1em;
+  overflow-x: auto;
+  overflow-y: auto;
+  max-height: 50vh;
+  white-space: pre-wrap;
+}

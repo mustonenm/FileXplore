@@ -1,0 +1,8 @@
+{
+  "host": "192.168.3.100",
+  "user": "FileX",
+  "password": "XFile",
+  "secure": false,
+  "defaultFolder": "/XPlore",
+  "defaultFileName": ""
+}

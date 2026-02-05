@@ -1,0 +1,35 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<?AutomationStudio FileVersion="4.9"?>
+<Configuration>
+  <Element ID="en" Type="Language">
+    <Property ID="LanguageName" Value="English" />
+    <Property ID="NativeName" Value="English" />
+    <Property ID="GroupSeparator" Value="," />
+    <Property ID="DecimalSeparator" Value="." />
+  </Element>
+  <Element ID="de" Type="Language">
+    <Property ID="LanguageName" Value="German" />
+    <Property ID="NativeName" Value="Deutsch" />
+    <Property ID="GroupSeparator" Value="." />
+    <Property ID="DecimalSeparator" Value="," />
+  </Element>
+  <Element ID="fr" Type="Language">
+    <Property ID="LanguageName" Value="French" />
+    <Property ID="NativeName" Value="français" />
+    <Property ID="GroupSeparator" Value=" " />
+    <Property ID="DecimalSeparator" Value="," />
+  </Element>
+  <Element ID="it" Type="Language">
+    <Property ID="LanguageName" Value="Italian" />
+    <Property ID="NativeName" Value="italiano" />
+    <Property ID="GroupSeparator" Value="." />
+    <Property ID="DecimalSeparator" Value="," />
+  </Element>
+  <Element ID="nl" Type="Language">
+    <Property ID="LanguageName" Value="Dutch" />
+    <Property ID="NativeName" Value="Nederlands" />
+    <Property ID="GroupSeparator" Value="." />
+    <Property ID="DecimalSeparator" Value="," />
+    <Property ID="IsDesignLanguage" Value="TRUE" />
+  </Element>
+</Configuration>

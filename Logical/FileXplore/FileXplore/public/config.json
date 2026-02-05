@@ -1,0 +1,11 @@
+{
+  "server": "localhost",
+  "serverPort": 5000,
+  "supportedFileExtensions": [".txt", ".cnc", ".pptx"],
+  "defaultPaths": {
+    "C:\\": "C:\\Temp\\TestFileX",
+    "D:\\": "D:\\Temp_TestFileX",
+    "E:\\": "E:\\Temp_TestFileX",
+    "Y:\\": "Y:\\"
+  }
+}

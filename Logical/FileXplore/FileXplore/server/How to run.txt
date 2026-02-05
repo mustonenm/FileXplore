@@ -1,0 +1,7 @@
+1. Install node.js server (Chrome downloads)
+2. Install Express via npm install express (from command line)
+3. Install the node production process manager and run the node application (from command line):
+	npm install -g pm2
+	pm2 start app.js
+	pm2 save
+	pm2-startup install

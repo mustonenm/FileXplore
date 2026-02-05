@@ -1,0 +1,4 @@
+VAR
+	xploreHttp : XploreHttpServices_typ;
+	httpService_0 : httpService;
+END_VAR

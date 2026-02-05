@@ -1,46 +1,14 @@
-# FileXplore - B&R Automation Studio 6 Sample Project
+# File Explorer with FTP Transfer
 
-A complete **B&R Automation Studio 6** sample project featuring a Vite + React file explorer application with Node.js backend. The application enables browsing local files and transferring them to a PLC with FTP server capabilities, featuring real-time progress tracking.
-
-## Project Overview
-
-This is a complete Automation Studio 6 project that demonstrates integration between:
-- **B&R PLC programming** (Structured Text in Automation Studio)
-- **mappView HMI** visualization (HTML5-based interface)
-- **Modern web technologies** (React + Vite frontend)
-- **Node.js backend** (running on Panel PC)
-- **FTP communication** between Panel PC and PLC
-
-### Automation Studio Project Structure
-
-The project includes the following key components:
-
-- **Logical/** - AS6 logical view containing all program logic
-  - **Source/XFiles/** - PLC structured text programs for file handling
-  - **FileXplore/FileXplore/** - React/Vite web application (this README's focus)
-  - **Libraries/** - Required B&R libraries (AsHttp, AsIecCon, AsZip, FileIO, etc.)
-  - **mappView/** - HMI visualization pages, layouts, and resources
-    
-- **Physical/** - Hardware configuration for B&R PLC
-  - PLC hardware setup and I/O mapping
-  - mappView and other service configurations
-
-For detailed information about the web application component, see [Logical/FileXplore/FileXplore/README.md](Logical/FileXplore/FileXplore/README.md)
+A Vite + React file explorer application with Node.js backend designed for **B&R mappView environments**. The application enables browsing local files and transferring them to a PLC with FTP server capabilities, featuring real-time progress tracking.
 
 ## Use Case
 
-This Automation Studio 6 project is designed for scenarios where:
-- A **B&R PLC** (e.g., X20CP3687X) runs the main control logic and hosts an FTP server
-- The **mappView HMI** interface displays the file explorer in the web browser
-- A **Panel PC** or industrial PC runs the Node.js backend with access to the local file system
-- **Files need to be transferred** from the Panel PC to the PLC for processing (e.g., CNC programs, configuration files)
-- **Real-time feedback** is required during file transfer operations
-
-### Architecture:
-- **Frontend (React)**: Runs in mappView HTML widget, provides UI for file browsing
-- **Backend (Node.js)**: Runs on Panel PC, accesses local files and handles FTP transfers
-- **PLC (B&R)**: Receives files via FTP, processes them, and can trigger load commands
-- **Communication**: HTTP/REST between frontend and backend, FTP between backend and PLC
+This application is intended to run in **B&R mappView** environments where:
+- The **frontend** runs in the mappView HMI interface
+- The **Node.js backend** runs on a **Panel PC** or another platform capable of accessing the local file system
+- The **FTP server** is a **B&R PLC** that receives the selected files from the file explorer
+- Files are transferred from the Panel PC (or host platform) to the PLC via FTP
 
 ## Features
 
