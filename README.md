@@ -2,7 +2,7 @@
 Here is a complete **B&R Automation Studio 6** sample project featuring a Vite + React file explorer application with Node.js backend. The application enables browsing local files and transferring them to a PLC with FTP server capabilities, featuring real-time progress tracking.
 
 # Basic consept
-![1. Basic consept](Logical/FileXplore/FileXplore/.github/Doc/2_Intro_FileXplore_use_cases.png)
+![1. Basic consept](Logical/FileXplore/FileXplore/.github/Doc/1_Intro_FileXplore_concept.png)
 # Use cases
 ![2. Use cases](Logical/FileXplore/FileXplore/.github/Doc/2_Intro_FileXplore_use_cases.png)
 # 1. Setup backend
