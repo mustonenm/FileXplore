@@ -8,7 +8,7 @@
   "defaultFolder": "/XPlore",
   "defaultFileName": "",
   "contentType": "application/octet-stream",
-  "chunkSizeBytes": 32768,
+  "chunkSizeBytes": 16384,
   "timeoutMs": 300000,
   "maxRetries": 2,
   "retryDelayMs": 1500,

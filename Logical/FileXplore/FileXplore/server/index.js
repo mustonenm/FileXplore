@@ -130,7 +130,7 @@ async function postChunkWithRetry({ url, chunk, headers, config, upload, chunkIn
 
 async function uploadFileInChunks({ url, filePath, remoteFileName, remotePath, transferId, config, upload, onProgress, onRetry }) {
   const fileSize = fs.statSync(filePath).size;
-  const chunkSize = Math.max(1, Math.min(config.chunkSizeBytes || 32768, 32768));
+  const chunkSize = Math.max(1, Math.min(config.chunkSizeBytes || 16384, 16384));
   const readStream = fs.createReadStream(filePath, { highWaterMark: chunkSize });
   let offset = 0;
   let chunkIndex = 0;
