@@ -1,5 +1,5 @@
 
-{REDUND_ERROR} {REDUND_UNREPLICABLE} FUNCTION_BLOCK XploreFileService (*Xplore file service*) (*$GROUP=User,$CAT=User,$GROUPICON=User.png,$CATICON=User.png*)
+{REDUND_ERROR} {REDUND_UNREPLICABLE} FUNCTION_BLOCK XploreFileService (*Xplore file service (HTTPS)*) (*$GROUP=User,$CAT=User,$GROUPICON=User.png,$CATICON=User.png*)
 	VAR_INPUT
 		Enable : {REDUND_UNREPLICABLE} BOOL;
 		Reset : {REDUND_UNREPLICABLE} BOOL;

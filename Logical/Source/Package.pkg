@@ -2,7 +2,7 @@
 <?AutomationStudio FileVersion="4.9"?>
 <Package xmlns="http://br-automation.co.at/AS/Package">
   <Objects>
+    <Object Type="Library" Language="IEC" Description="Library for file managment backend functionality">XFileLib</Object>
     <Object Type="Program" Language="IEC" Description=" Sample code to get the selected files from FileXplorer">XFiles</Object>
-    <Object Type="Library" Language="IEC">XFileLib</Object>
   </Objects>
 </Package>
