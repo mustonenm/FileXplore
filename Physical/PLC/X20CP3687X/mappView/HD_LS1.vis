@@ -12,12 +12,14 @@
   <BindingsSets>
     <BindingsSet refId="HD_LS1_contentProduction1" />
     <BindingsSet refId="HD_LS1_contentNavigation" />
+    <BindingsSet refId="HD_LS1_contentMain" />
   </BindingsSets>
   <EventBindingsSets>
     <EventBindingsSet refId="HD_LS1_contentAlarmList" />
     <EventBindingsSet refId="HD_LS1_system" />
     <EventBindingsSet refId="HD_LS1_contentNavigation" />
   </EventBindingsSets>
+  <EventScriptsSets />
   <Dialogs />
   <Contents>
     <Content refId="HD_LS1_contentHeader" />

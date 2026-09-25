@@ -1,3 +1,4 @@
 VAR
+	cpuSimulated : BOOL;
 	xploreFileService_0 : XploreFileService;
 END_VAR
