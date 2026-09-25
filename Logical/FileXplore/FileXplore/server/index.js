@@ -63,6 +63,12 @@ function buildRemotePath(fileName, targetFolder, config) {
   return path.posix.join(folder.replace(/\\/g, '/'), fileName);
 }
 
+function toHttpHeaderValue(value) {
+  return String(value)
+    .replace(/[\u0000-\u001F\u007F]/g, '_')
+    .replace(/[^\u0000-\u00FF]/g, '_');
+}
+
 function buildHttpsAgentOptions(config) {
   if ((config.protocol || 'https').replace(/:$/, '') !== 'https') return {};
   return { rejectUnauthorized: config.rejectUnauthorized !== false };
@@ -144,8 +150,8 @@ async function uploadFileInChunks({ url, filePath, remoteFileName, remotePath, t
       const finalChunk = offset + chunk.length >= fileSize;
       const headers = {
         'Content-Type': config.contentType || 'application/octet-stream',
-        fileName: remoteFileName,
-        remotePath,
+        fileName: toHttpHeaderValue(remoteFileName),
+        remotePath: toHttpHeaderValue(remotePath),
         transferId,
         chunkOffset: offset.toString(),
         chunkIndex: chunkIndex.toString(),
@@ -401,7 +407,7 @@ app.post('/api/load-selected-file', async (req, res) => {
 
     await postBufferToTransferTarget(loadUrl, Buffer.from('Load'), {
       'Content-Type': 'application/text',
-      fileName: fileName || ''
+      fileName: toHttpHeaderValue(fileName || '')
     }, config);
 
     res.json({ success: true });

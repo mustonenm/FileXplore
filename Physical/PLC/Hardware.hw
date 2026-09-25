@@ -11,7 +11,6 @@
     </Connector>
     <Parameter ID="ConfigurationID" Value="FileXplore_PLC" />
     <Parameter ID="UserPartitionSize" Value="100" />
-    <Parameter ID="Simulation" Value="1" />
     <Parameter ID="ActivateEncryption" Value="0" />
     <Group ID="FileDevice1" />
     <Parameter ID="FileDeviceName1" Value="USER" />
