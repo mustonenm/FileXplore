@@ -1,0 +1,16 @@
+{
+  "protocol": "https",
+  "host": "192.168.3.100",
+  "port": 443,
+  "basePath": "",
+  "uploadPath": "/upload-Xfile",
+  "loadPath": "/load-selected-Xfile",
+  "defaultFolder": "/XPlore",
+  "defaultFileName": "",
+  "contentType": "application/octet-stream",
+  "chunkSizeBytes": 32768,
+  "timeoutMs": 300000,
+  "maxRetries": 2,
+  "retryDelayMs": 1500,
+  "rejectUnauthorized": false
+}

@@ -99,7 +99,6 @@ function FileExplorer({ onOpenFile }) {
   const [currentPath, setCurrentPath] = useState('');
   const [selectedPath, setSelectedPath] = useState(null);
   const [availableDrives, setAvailableDrives] = useState([]);
-  const [customPath, setCustomPath] = useState('');
   const [initialized, setInitialized] = useState(false);
   const [lastTransferredFile, setLastTransferredFile] = useState(null);
   const [uploadProgress, setUploadProgress] = useState(null);
@@ -204,8 +203,6 @@ function FileExplorer({ onOpenFile }) {
           // if (data.length > 0) {
           //   console.log('Sample item:', data[0]);
           // }
-          const folders = data.filter(item => item.isDirectory);
-          const files = data.filter(item => !item.isDirectory);
           // console.log('Folders:', folders.length, folders.map(f => f.name));
           // console.log('Files:', files.length, files.map(f => f.name));
           setRootItems(data);
@@ -396,7 +393,7 @@ function FileExplorer({ onOpenFile }) {
             <div style={{ padding: '10px 0', display: 'flex', alignItems: 'center', gap: '12px' }}>
               <div style={{ flex: 1 }}>
                 <div style={{ fontSize: '12px', color: '#888', marginBottom: '4px' }}>
-                  Uploading to FTP... {uploadProgress}%
+                  Uploading over HTTPS... {uploadProgress}%
                 </div>
                 <div style={{ width: '100%', height: '4px', background: '#222', borderRadius: '2px', overflow: 'hidden' }}>
                   <div style={{ width: `${uploadProgress}%`, height: '100%', background: '#4caf50', transition: 'width 0.3s ease' }} />
@@ -506,34 +503,42 @@ function App() {
 
   function handleOpenFile(node, onTransferSuccess, setUploadProgress, setCurrentXhr) {
     window.lastSelectedFilePath = node.path;
-    // Call handleSaveToFTP immediately when a file is selected
-    handleSaveToFTP(node.path, '', onTransferSuccess, setUploadProgress, setCurrentXhr);
+    // Call handleSaveToHttps immediately when a file is selected
+    handleSaveToHttps(node.path, '', onTransferSuccess, setUploadProgress, setCurrentXhr);
   }
 
-  async function handleSaveToFTP(selectedPath, targetFolder, onTransferSuccess, setUploadProgress, setCurrentXhr) {
+  async function handleSaveToHttps(selectedPath, targetFolder, onTransferSuccess, setUploadProgress, setCurrentXhr) {
     if (setUploadProgress) setUploadProgress(0);
+    const controller = new AbortController();
+    let uploadId = null;
     
     try {
-      // First, fetch the file content from the backend
-      const fileResponse = await fetch(`${API_BASE_URL}/api/read-file?path=${encodeURIComponent(selectedPath)}`);
-      if (!fileResponse.ok) {
-        throw new Error('Failed to read file from server');
-      }
-      const fileBlob = await fileResponse.blob();
-      
-      // Now upload with SSE for progress tracking
       const fileName = selectedPath.split('\\').pop();
-      const uploadResponse = await fetch(`${API_BASE_URL}/api/save-to-ftp-static`, {
+      const uploadResponse = await fetch(`${API_BASE_URL}/api/save-to-https-static`, {
         method: 'POST',
-        headers: {
-          'X-File-Name': fileName,
-          'X-Target-Folder': targetFolder || ''
-        },
-        body: fileBlob
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ filePath: selectedPath, targetFolder: targetFolder || '' }),
+        signal: controller.signal
       });
       
       if (!uploadResponse.ok) {
         throw new Error('Upload failed: ' + uploadResponse.statusText);
+      }
+
+      uploadId = uploadResponse.headers.get('X-Upload-Id');
+      if (setCurrentXhr) {
+        setCurrentXhr({
+          abort: () => {
+            if (uploadId) {
+              fetch(`${API_BASE_URL}/api/cancel-upload`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ uploadId })
+              }).catch(() => {});
+            }
+            controller.abort();
+          }
+        });
       }
       
       // Read SSE stream for progress updates
@@ -556,14 +561,18 @@ function App() {
               const data = JSON.parse(line.substring(6));
               
               if (data.type === 'start') {
-                console.log('FTP upload started, file size:', (data.fileSize / (1024 * 1024)).toFixed(2), 'MB');
+                console.log('HTTPS upload started, file size:', (data.fileSize / (1024 * 1024)).toFixed(2), 'MB');
+                if (setUploadProgress) setUploadProgress(0);
+              } else if (data.type === 'retry') {
+                console.warn('HTTPS upload retry:', data.attempt, data.error);
                 if (setUploadProgress) setUploadProgress(0);
               } else if (data.type === 'progress') {
-                // console.log('FTP progress:', data.percent + '%');
+                // console.log('HTTPS progress:', data.percent + '%');
                 if (setUploadProgress) setUploadProgress(data.percent);
               } else if (data.type === 'complete') {
-                console.log('File uploaded to FTP server successfully!');
+                console.log('File uploaded over HTTPS successfully!');
                 if (setUploadProgress) setUploadProgress(null);
+                if (setCurrentXhr) setCurrentXhr(null);
                 
                 // Mark file as transferred
                 if (onTransferSuccess) onTransferSuccess(selectedPath);
@@ -586,7 +595,12 @@ function App() {
               } else if (data.type === 'error') {
                 console.error('Upload error:', data.error);
                 if (setUploadProgress) setUploadProgress(null);
+                if (setCurrentXhr) setCurrentXhr(null);
                 alert('Failed to upload: ' + data.error);
+              } else if (data.type === 'cancelled') {
+                console.warn('Upload cancelled');
+                if (setUploadProgress) setUploadProgress(null);
+                if (setCurrentXhr) setCurrentXhr(null);
               }
             } catch (e) {
               console.error('Failed to parse SSE data:', e);
@@ -597,7 +611,10 @@ function App() {
       
     } catch (error) {
       if (setUploadProgress) setUploadProgress(null);
-      alert('Failed to upload file: ' + error.message);
+      if (setCurrentXhr) setCurrentXhr(null);
+      if (error.name !== 'AbortError') {
+        alert('Failed to upload file: ' + error.message);
+      }
       console.error('Upload error:', error);
     }
   }

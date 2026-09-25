@@ -2,9 +2,10 @@
 const express = require('express');
 const fs = require('fs');
 const path = require('path');
+const http = require('http');
+const https = require('https');
 const cors = require('cors');
 const bodyParser = require('body-parser');
-const ftp = require('basic-ftp');
 
 const app = express();
 const PORT = 5000;
@@ -13,24 +14,165 @@ app.use(cors({
   exposedHeaders: ['X-Upload-Id']
 }));
 app.use(bodyParser.json());
-app.use('/api/save-to-ftp-static', express.raw({ type: '*/*', limit: '500mb' }));
 
-// Load static FTP config from a JSON file at server startup
-const staticFtpConfigPath = path.join(__dirname, 'ftp-config.json');
-let staticFtpConfig = null;
+// Load static HTTPS transfer config from a JSON file at server startup.
+const staticHttpsConfigPath = path.join(__dirname, 'https-config.json');
+let staticTransferConfig = null;
 try {
-  if (fs.existsSync(staticFtpConfigPath)) {
-    staticFtpConfig = JSON.parse(fs.readFileSync(staticFtpConfigPath, 'utf8'));
+  if (fs.existsSync(staticHttpsConfigPath)) {
+    staticTransferConfig = JSON.parse(fs.readFileSync(staticHttpsConfigPath, 'utf8'));
   }
 } catch (err) {
-  console.error('Failed to load static FTP config:', err.message);
+  console.error('Failed to load static HTTPS transfer config:', err.message);
 }
 
-// Track active FTP uploads for cancellation support
+// Track active HTTPS uploads for cancellation support
 const activeUploads = new Map();
 let uploadIdCounter = 0;
 
-// Cancel an active FTP upload
+function joinUrlPaths(...parts) {
+  return '/' + parts
+    .filter(Boolean)
+    .map(part => String(part).replace(/^\/+|\/+$/g, ''))
+    .filter(Boolean)
+    .join('/');
+}
+
+function buildTransferUrl(config, endpointPath) {
+  const protocol = (config.protocol || 'https').replace(/:$/, '');
+  const port = config.port ? `:${config.port}` : '';
+  const servicePath = joinUrlPaths(config.basePath, endpointPath);
+  return `${protocol}://${config.host}${port}${servicePath}`;
+}
+
+function buildRemoteFileName(fileName, config) {
+  let remoteFileName = (config.defaultFileName && config.defaultFileName.trim() !== '')
+    ? config.defaultFileName
+    : fileName;
+
+  if (config.defaultFileName && config.defaultFileName.trim() !== '' && !path.extname(config.defaultFileName)) {
+    remoteFileName += path.extname(fileName);
+  }
+
+  return remoteFileName;
+}
+
+function buildRemotePath(fileName, targetFolder, config) {
+  const folder = targetFolder || config.defaultFolder || '';
+  if (!folder) return fileName;
+  return path.posix.join(folder.replace(/\\/g, '/'), fileName);
+}
+
+function buildHttpsAgentOptions(config) {
+  if ((config.protocol || 'https').replace(/:$/, '') !== 'https') return {};
+  return { rejectUnauthorized: config.rejectUnauthorized !== false };
+}
+
+function delay(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+function postBufferToTransferTarget(url, body, headers, config, onRequest = () => {}) {
+  return new Promise((resolve, reject) => {
+    const parsedUrl = new URL(url);
+    const transport = parsedUrl.protocol === 'https:' ? https : http;
+    const requestOptions = {
+      method: 'POST',
+      headers: {
+        'Content-Length': Buffer.byteLength(body),
+        ...headers
+      },
+      ...buildHttpsAgentOptions(config)
+    };
+
+    const request = transport.request(parsedUrl, requestOptions, response => {
+      const chunks = [];
+      response.on('data', chunk => chunks.push(chunk));
+      response.on('end', () => {
+        const responseBody = Buffer.concat(chunks).toString('utf8');
+        if (response.statusCode >= 200 && response.statusCode < 300) {
+          resolve(responseBody);
+        } else {
+          reject(new Error(`HTTPS target error: ${response.statusCode} ${responseBody}`));
+        }
+      });
+    });
+
+    onRequest(request);
+    request.setTimeout(config.timeoutMs || 300000, () => {
+      request.destroy(new Error(`HTTPS request timed out after ${config.timeoutMs || 300000} ms`));
+    });
+    request.on('error', reject);
+    request.end(body);
+  });
+}
+
+async function postChunkWithRetry({ url, chunk, headers, config, upload, chunkIndex, onRetry }) {
+  const maxRetries = Number.isInteger(config.maxRetries) ? config.maxRetries : 2;
+  const retryDelayMs = config.retryDelayMs || 1500;
+
+  for (let attempt = 1; attempt <= maxRetries + 1; attempt += 1) {
+    try {
+      await postBufferToTransferTarget(url, chunk, headers, config, request => {
+        upload.request = request;
+      });
+      upload.request = null;
+      return attempt;
+    } catch (err) {
+      upload.request = null;
+      if (upload.cancelled) throw new Error('Upload cancelled');
+      if (attempt > maxRetries) throw err;
+      onRetry({ chunkIndex, attempt, maxAttempts: maxRetries + 1, error: err.message });
+      await delay(retryDelayMs);
+    }
+  }
+}
+
+async function uploadFileInChunks({ url, filePath, remoteFileName, remotePath, transferId, config, upload, onProgress, onRetry }) {
+  const fileSize = fs.statSync(filePath).size;
+  const chunkSize = Math.max(1, Math.min(config.chunkSizeBytes || 32768, 32768));
+  const readStream = fs.createReadStream(filePath, { highWaterMark: chunkSize });
+  let offset = 0;
+  let chunkIndex = 0;
+
+  upload.readStream = readStream;
+
+  try {
+    for await (const chunk of readStream) {
+      if (upload.cancelled) throw new Error('Upload cancelled');
+
+      const finalChunk = offset + chunk.length >= fileSize;
+      const headers = {
+        'Content-Type': config.contentType || 'application/octet-stream',
+        fileName: remoteFileName,
+        remotePath,
+        transferId,
+        chunkOffset: offset.toString(),
+        chunkIndex: chunkIndex.toString(),
+        fileSize: fileSize.toString(),
+        finalChunk: finalChunk ? '1' : '0'
+      };
+
+      await postChunkWithRetry({
+        url,
+        chunk,
+        headers,
+        config,
+        upload,
+        chunkIndex,
+        onRetry
+      });
+
+      offset += chunk.length;
+      chunkIndex += 1;
+      onProgress(offset, fileSize, chunkIndex);
+    }
+  } finally {
+    upload.readStream = null;
+  }
+}
+
+// Cancel an active HTTPS upload
 app.post('/api/cancel-upload', (req, res) => {
   const { uploadId } = req.body;
   if (!uploadId) return res.status(400).json({ error: 'Missing uploadId' });
@@ -41,11 +183,12 @@ app.post('/api/cancel-upload', (req, res) => {
   }
   
   try {
-    // Close the FTP client connection
-    upload.client.close();
+    upload.cancelled = true;
+    if (upload.readStream) upload.readStream.destroy(new Error('Upload cancelled'));
+    if (upload.request) upload.request.destroy(new Error('Upload cancelled'));
     
-    // Clean up temp file
-    if (fs.existsSync(upload.tempFilePath)) {
+    // Clean up temp file if this upload used one.
+    if (upload.tempFilePath && fs.existsSync(upload.tempFilePath)) {
       fs.unlinkSync(upload.tempFilePath);
     }
     
@@ -103,14 +246,14 @@ app.get('/api/drives', (req, res) => {
       const drivePath = `${letter}:\\`;
       try {
         if (fs.existsSync(drivePath)) {
-          const stats = fs.statSync(drivePath);
+          fs.statSync(drivePath);
           drives.push({
             letter: letter,
             path: drivePath,
             type: 'drive'
           });
         }
-      } catch (err) {
+      } catch {
         // Drive not accessible, skip
       }
     });
@@ -151,7 +294,7 @@ app.get('/api/list', (req, res) => {
         try {
           const stats = fs.statSync(itemPath);
           isDir = stats.isDirectory();
-        } catch (e) {
+        } catch {
           // If stat fails, trust the original isDirectory() result
         }
       }
@@ -176,160 +319,91 @@ app.get('/api/list', (req, res) => {
   });
 });
 
-// Save selected file to FTP server
-app.post('/api/save-to-ftp', async (req, res) => {
-  const { filePath, ftpConfig } = req.body;
-  if (!filePath || !ftpConfig) return res.status(400).json({ error: 'Missing filePath or ftpConfig' });
-  const client = new ftp.Client();
-  try {
-    await client.access(ftpConfig);
-    await client.uploadFrom(filePath, path.basename(filePath));
-    res.json({ success: true });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  } finally {
-    client.close();
-  }
-});
+// Stream selected file to the PLC over HTTPS using static config.
+// Returns a Server-Sent Events stream for progress and retry updates.
+app.post('/api/save-to-https-static', async (req, res) => {
+  const { filePath, targetFolder = '' } = req.body || {};
 
-// Save selected file to FTP server using config from a JSON file
-app.post('/api/save-to-ftp-json', async (req, res) => {
-  const { filePath, configPath } = req.body;
-  if (!filePath || !configPath) return res.status(400).json({ error: 'Missing filePath or configPath' });
-  let ftpConfig;
-  try {
-    const configRaw = fs.readFileSync(configPath, 'utf8');
-    ftpConfig = JSON.parse(configRaw);
-  } catch (err) {
-    return res.status(500).json({ error: 'Failed to read or parse FTP config: ' + err.message });
+  if (!filePath) return res.status(400).json({ error: 'Missing filePath' });
+  if (!staticTransferConfig || !staticTransferConfig.host) {
+    return res.status(500).json({ error: 'Static HTTPS transfer config or host missing' });
   }
-  const client = new ftp.Client();
-  try {
-    await client.access(ftpConfig);
-    await client.uploadFrom(filePath, path.basename(filePath));
-    res.json({ success: true });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  } finally {
-    client.close();
-  }
-});
+  if (!fs.existsSync(filePath)) return res.status(404).json({ error: 'File not found' });
 
-// Save selected file to FTP server using static config, with optional target folder
-// Returns Server-Sent Events stream for progress updates
-app.post('/api/save-to-ftp-static', async (req, res) => {
-  // Get file metadata from headers
-  const fileName = req.headers['x-file-name'];
-  const targetFolder = req.headers['x-target-folder'] || '';
-  
-  if (!fileName) return res.status(400).json({ error: 'Missing X-File-Name header' });
-  if (!staticFtpConfig) return res.status(500).json({ error: 'Static FTP config not loaded' });
-  if (!Buffer.isBuffer(req.body)) return res.status(400).json({ error: 'Expected binary file data in request body' });
-  
+  const stats = fs.statSync(filePath);
+  if (stats.isDirectory()) return res.status(400).json({ error: 'Path is a directory, not a file' });
+
   const uploadId = ++uploadIdCounter;
-  const client = new ftp.Client();
-  const tempFilePath = path.join(__dirname, 'temp_upload_' + Date.now() + '_' + fileName);
-  
-  // Track this upload for cancellation
-  activeUploads.set(uploadId, { client, tempFilePath, fileName });
-  
-  // Set up SSE headers
+  const fileName = path.basename(filePath);
+  const remoteFileName = buildRemoteFileName(fileName, staticTransferConfig);
+  const remotePath = buildRemotePath(remoteFileName, targetFolder, staticTransferConfig);
+  const uploadPath = staticTransferConfig.uploadPath || '/upload-Xfile';
+  const uploadUrl = buildTransferUrl(staticTransferConfig, uploadPath);
+  const upload = { fileName, request: null, readStream: null, cancelled: false };
+
+  activeUploads.set(uploadId, upload);
+
   res.setHeader('Content-Type', 'text/event-stream');
   res.setHeader('Cache-Control', 'no-cache');
   res.setHeader('Connection', 'keep-alive');
   res.setHeader('X-Upload-Id', uploadId.toString());
   res.flushHeaders();
-  
+
   const sendProgress = (data) => {
     res.write(`data: ${JSON.stringify(data)}\n\n`);
   };
-  
+
+  const transferId = `${Date.now()}-${uploadId}`;
+
   try {
-    // Write buffer to temp file
-    fs.writeFileSync(tempFilePath, req.body);
-    const fileSize = fs.statSync(tempFilePath).size;
-    
-    sendProgress({ type: 'start', uploadId, fileSize });
-    
-    await client.access(staticFtpConfig);
-    
-    // Use defaultFileName from config if not empty, otherwise use original filename
-    let remoteFileName = (staticFtpConfig.defaultFileName && staticFtpConfig.defaultFileName.trim() !== '') 
-      ? staticFtpConfig.defaultFileName 
-      : fileName;
-    
-    // If defaultFileName is provided but has no extension, add the extension from the original file
-    if (staticFtpConfig.defaultFileName && staticFtpConfig.defaultFileName.trim() !== '') {
-      const configExt = path.extname(staticFtpConfig.defaultFileName);
-      if (!configExt) {
-        const originalExt = path.extname(fileName);
-        remoteFileName = remoteFileName + originalExt;
-      }
-    }
-    
-    // Use targetFolder from headers, or defaultFolder from config, or root
-    const folder = targetFolder || staticFtpConfig.defaultFolder || '';
-    let remotePath = remoteFileName;
-    if (folder) {
-      await client.ensureDir(folder);
-      remotePath = path.posix.join(folder.replace(/\\/g, '/'), remoteFileName);
-    }
-    
-    // Track FTP upload progress
-    client.trackProgress(info => {
-      if (info.type === 'upload') {
-        const percent = Math.round((info.bytes / fileSize) * 100);
-        sendProgress({ type: 'progress', percent, bytes: info.bytes, total: fileSize });
+    sendProgress({ type: 'start', uploadId, fileSize: stats.size, remotePath, transferId });
+
+    await uploadFileInChunks({
+      url: uploadUrl,
+      filePath,
+      remoteFileName,
+      remotePath,
+      transferId,
+      config: staticTransferConfig,
+      upload,
+      onProgress: (bytes, total, chunksSent) => {
+        const percent = total > 0 ? Math.round((bytes / total) * 100) : 100;
+        sendProgress({ type: 'progress', percent, bytes, total, chunksSent });
+      },
+      onRetry: (data) => {
+        sendProgress({ type: 'retry', ...data });
       }
     });
-    
-    await client.uploadFrom(tempFilePath, remotePath);
-    
-    sendProgress({ type: 'complete', success: true });
+
+    sendProgress({ type: 'complete', success: true, remotePath });
     res.end();
   } catch (err) {
-    sendProgress({ type: 'error', error: err.message });
+    if (upload.cancelled || err.message === 'Upload cancelled') {
+      sendProgress({ type: 'cancelled', error: 'Upload cancelled' });
+    } else {
+      sendProgress({ type: 'error', error: err.message });
+    }
     res.end();
   } finally {
     activeUploads.delete(uploadId);
-    client.close();
-    // Clean up temp file
-    try {
-      if (fs.existsSync(tempFilePath)) {
-        fs.unlinkSync(tempFilePath);
-      }
-    } catch (cleanupErr) {
-      console.error('Failed to delete temp file:', cleanupErr);
-    }
   }
 });
 
-// New endpoint: ack file loaded --> after file has been uploaded over FTP
+// Ack file loaded after file has been uploaded over HTTPS.
 app.post('/api/load-selected-file', async (req, res) => {
   try {
     const { fileName } = req.body;
-    // Send HTTP POST to the FTP server IP (from config) to trigger file load
-    const config = staticFtpConfig;
+    const config = staticTransferConfig;
     if (!config || !config.host) {
-      return res.status(500).json({ error: 'FTP config or host missing' });
+      return res.status(500).json({ error: 'HTTPS transfer config or host missing' });
     }
-    // Example: POST to http://<host>/load-selected-file (adjust path as needed)
-    const url = `http://${config.host}/load-selected-Xfile`;
-    // You may need to adjust the payload and endpoint to match your file controller's API
-    const fetch = (...args) => import('node-fetch').then(({default: fetch}) => fetch(...args));
-    
-    const fileRes = await fetch(url, {
-      method: 'POST',
-      headers: { 
-        'Content-Type': 'application/text',
-        'fileName': fileName || ''
-      },
-      body: 'Load', // Adjust payload as needed
-    });
-    if (!fileRes.ok) {
-      const text = await fileRes.text();
-      return res.status(500).json({ error: `file HTTP error: ${fileRes.status} ${text}` });
-    }
+    const loadUrl = buildTransferUrl(config, config.loadPath || '/load-selected-Xfile');
+
+    await postBufferToTransferTarget(loadUrl, Buffer.from('Load'), {
+      'Content-Type': 'application/text',
+      fileName: fileName || ''
+    }, config);
+
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });

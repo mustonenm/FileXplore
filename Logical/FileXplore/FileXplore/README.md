@@ -1,14 +1,14 @@
-# File Explorer with FTP Transfer
+# File Explorer with HTTPS Transfer
 
-A Vite + React file explorer application with Node.js backend designed for **B&R mappView environments**. The application enables browsing local files and transferring them to a PLC with FTP server capabilities, featuring real-time progress tracking.
+A Vite + React file explorer application with Node.js backend designed for **B&R mappView environments**. The application enables browsing local files and transferring them to a PLC over chunked HTTPS, featuring real-time progress tracking and transfer recovery handling.
 
 ## Use Case
 
 This application is intended to run in **B&R mappView** environments where:
 - The **frontend** runs in the mappView HMI interface
 - The **Node.js backend** runs on a **Panel PC** or another platform capable of accessing the local file system
-- The **FTP server** is a **B&R PLC** that receives the selected files from the file explorer
-- Files are transferred from the Panel PC (or host platform) to the PLC via FTP
+- The **HTTPS endpoint** is a **B&R PLC** service that receives the selected files from the file explorer
+- Files are streamed from the Panel PC (or host platform) to the PLC via bounded HTTPS chunks
 
 ## Features
 
@@ -19,17 +19,18 @@ This application is intended to run in **B&R mappView** environments where:
 - Configurable file extension filtering (e.g., `.txt`, `.cnc`)
 - Access restrictions to prevent navigation outside configured directories
 
-### FTP Transfer
-- One-click file transfer to FTP server (B&R PLC)
+### HTTPS Transfer
+- One-click file transfer to HTTPS endpoint (B&R PLC)
 - Real-time upload progress tracking using Server-Sent Events (SSE)
-- Visual progress bar showing actual FTP transfer percentage
+- Visual progress bar showing actual HTTPS transfer percentage
 - Transfer cancellation support (client and server-side)
+- Configurable chunk size, timeout, and retry handling for transient transfer failures
 - Automatic file load command trigger after successful upload to PLC
 - Green highlight for successfully transferred files
 
 ### Configuration
 - **Frontend Config** (`public/config.json`): Supported file extensions and default drive paths
-- **Backend Config** (`server/ftp-config.json`): PLC FTP server credentials, default folder, and filename settings
+- **Backend Config** (`server/https-config.json`): PLC HTTPS endpoint, chunk size, timeout, retry, default folder, and filename settings
 
 ## Project Structure
 
@@ -38,7 +39,7 @@ This application is intended to run in **B&R mappView** environments where:
 │   └── config.json          # Frontend configuration
 ├── server/
 │   ├── index.js             # Express backend server
-│   └── ftp-config.json      # FTP server configuration
+│   └── https-config.json    # HTTPS transfer configuration
 ├── src/
 │   ├── App.jsx              # Main React application
 │   ├── App.css              # Application styles
@@ -182,14 +183,14 @@ Check if the service is running by accessing `http://localhost:5000/api/drives` 
 - `GET /api/drives` - List available drives on the host platform
 - `GET /api/list?path=<path>` - List directory contents from host file system
 - `GET /api/read-file?path=<path>` - Read file as binary stream from host
-- `POST /api/save-to-ftp-static` - Upload file to PLC FTP server with progress (SSE)
-- `POST /api/cancel-upload` - Cancel active FTP upload to PLC
+- `POST /api/save-to-https-static` - Stream file from backend host to PLC HTTPS endpoint in chunks with progress (SSE)
+- `POST /api/cancel-upload` - Cancel active HTTPS upload to PLC
 - `POST /api/load-selected-file` - Trigger file load command on PLC
 
 ## Technologies
 
 - **Frontend**: React 18, Vite, CSS (deployable to B&R mappView HTML )
 - **Backend**: Node.js, Express (runs on Panel PC or host platform)
-- **FTP Client**: basic-ftp (for transferring files to PLC)
+- **Transfer**: Node.js native HTTPS chunk upload client
 - **Progress Tracking**: Server-Sent Events (SSE)
-- **Target**: B&R PLC with FTP server capability
+- **Target**: B&R PLC with HTTPS service capability

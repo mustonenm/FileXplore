@@ -1,4 +1,10 @@
 VAR
 	xploreHttp : XploreHttpServices_typ;
-	httpService_0 : httpService;
+	loadHttpsService_0 : httpsService;
+	uploadHttpsService_0 : httpsService;
+	fileDelete_0 : FileDelete;
+	fileCreate_0 : FileCreate;
+	fileOpen_0 : FileOpen;
+	fileWrite_0 : FileWrite;
+	fileClose_0 : FileClose;
 END_VAR

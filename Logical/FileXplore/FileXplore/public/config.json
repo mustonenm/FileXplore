@@ -1,9 +1,9 @@
 {
   "server": "localhost",
   "serverPort": 5000,
-  "supportedFileExtensions": [".txt", ".cnc", ".pptx"],
+  "supportedFileExtensions": [".txt", ".cnc", ".dnc", ".pptx"],
   "defaultPaths": {
-    "C:\\": "C:\\Temp\\TestFileX",
+    "C:\\": "C:\\CncPrograms",
     "D:\\": "D:\\Temp_TestFileX",
     "E:\\": "E:\\Temp_TestFileX",
     "Y:\\": "Y:\\"
