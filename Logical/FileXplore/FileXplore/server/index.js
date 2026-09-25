@@ -65,7 +65,9 @@ function buildRemotePath(fileName, targetFolder, config) {
 
 function toHttpHeaderValue(value) {
   return String(value)
+    // eslint-disable-next-line no-control-regex
     .replace(/[\u0000-\u001F\u007F]/g, '_')
+    // eslint-disable-next-line no-control-regex
     .replace(/[^\u0000-\u00FF]/g, '_');
 }
 

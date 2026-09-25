@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import './App.css'
+import { appVersion } from './version'
 
 // Configuration will be loaded dynamically
 let SUPPORTED_FILE_EXTENSIONS = [];
@@ -467,6 +468,23 @@ function FileExplorer({ onOpenFile }) {
   );
 }
 
+function StartupVersion() {
+  const [visible, setVisible] = useState(true);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setVisible(false), 5000);
+    return () => clearTimeout(timer);
+  }, []);
+
+  if (!visible) return null;
+
+  return (
+    <div className="startup-version" aria-label={`Version ${appVersion}`}>
+      v{appVersion}
+    </div>
+  );
+}
+
 function App() {
   const [configLoaded, setConfigLoaded] = useState(false);
   const [configError, setConfigError] = useState(null);
@@ -621,6 +639,7 @@ function App() {
 
   return (
     <div className="App app-flex">
+      <StartupVersion />
       {configError ? (
         <div style={{ color: '#fff', padding: '40px', textAlign: 'center' }}>
           <h2 style={{ color: '#ff4444', marginBottom: '20px' }}>⚠️ Configuration Error</h2>
