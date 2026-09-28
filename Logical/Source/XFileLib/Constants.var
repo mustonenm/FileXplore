@@ -1,3 +1,4 @@
 VAR CONSTANT
-
+	MAX_DATA_PAYLOAD_SIZE_BYTES : UDINT := 1048576*MAX_DATA_PAYLOAD_SIZE_MB;
+	MAX_DATA_PAYLOAD_SIZE_MB : UDINT := 5; (*This is the value to set for the file transfer*)
 END_VAR

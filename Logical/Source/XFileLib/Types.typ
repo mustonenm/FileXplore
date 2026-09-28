@@ -20,7 +20,7 @@ TYPE
 		LoadResponseHeader : httpResponseHeader_t;
 		LoadResponse : STRING[1000];
 		UploadRequestHeader : httpRequestHeader_t;
-		UploadData : ARRAY[0..32767]OF USINT;
+		UploadData : ARRAY[0..MAX_DATA_PAYLOAD_SIZE_BYTES]OF USINT;
 		UploadResponseHeader : httpResponseHeader_t;
 		UploadResponse : STRING[1000];
 		FileName : STRING[80];

@@ -75,7 +75,7 @@ FUNCTION_BLOCK XploreFileService
 			ELSIF service.FileName = '' THEN
 				service.LastHttpStatus := 400;
 				service.UploadStep := XPLORE_UPLOAD_ERROR;
-			ELSIF service.UploadLength > SIZEOF(service.UploadData) THEN
+			ELSIF service.UploadLength >= SIZEOF(service.UploadData) THEN
 				service.LastHttpStatus := 413;
 				service.UploadStep := XPLORE_UPLOAD_ERROR;
 			ELSIF service.UploadOffset = 0 THEN

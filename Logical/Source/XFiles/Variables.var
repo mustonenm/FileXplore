@@ -1,4 +1,5 @@
 VAR
 	cpuSimulated : BOOL;
 	xploreFileService_0 : XploreFileService;
+	uploadDataSize : UDINT;
 END_VAR
