@@ -23,7 +23,7 @@ PROGRAM _CYCLIC
 			gHostIP := '192.168.3.100'; //Real target
 		END_IF
 		
-		uploadDataSize := SIZEOF(xploreFileService_0.service.UploadData);
+//		uploadDataSize := SIZEOF(xploreFileService_0.service.UploadData);
 
 END_PROGRAM
 
