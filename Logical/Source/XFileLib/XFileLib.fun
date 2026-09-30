@@ -25,6 +25,6 @@
 		fileOpen : {REDUND_UNREPLICABLE} FileOpen;
 		fileWrite : {REDUND_UNREPLICABLE} FileWrite;
 		fileClose : {REDUND_UNREPLICABLE} FileClose;
-		service : {REDUND_UNREPLICABLE} XploreHttpServices_typ;
+		service : {REDUND_UNREPLICABLE} XploreHttpsServices_typ;
 	END_VAR
 END_FUNCTION_BLOCK

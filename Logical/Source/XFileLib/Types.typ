@@ -11,7 +11,7 @@ TYPE
 		XPLORE_UPLOAD_RESPOND := 60,
 		XPLORE_UPLOAD_ERROR := 100
 		);
-	XploreHttpServices_typ : 	STRUCT 
+	XploreHttpsServices_typ : 	STRUCT 
 		LoadServiceName : STRING[80];
 		UploadServiceName : STRING[80];
 		FileDevice : STRING[20];
