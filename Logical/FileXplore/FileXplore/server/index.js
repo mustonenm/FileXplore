@@ -80,6 +80,54 @@ function delay(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
+// True when the buffer is already valid UTF-8 (used to avoid re-encoding files
+// that are correctly encoded but carry no BOM).
+function isValidUtf8(buffer) {
+  return Buffer.compare(Buffer.from(buffer.toString('utf8'), 'utf8'), buffer) === 0;
+}
+
+// Windows-1252 ("ANSI" on Western Windows) matches Latin-1 except for 0x80-0x9F.
+// This maps that range to the correct Unicode code points (€, smart quotes, dashes, etc.).
+const CP1252_HIGH = {
+  0x80: 0x20AC, 0x82: 0x201A, 0x83: 0x0192, 0x84: 0x201E, 0x85: 0x2026,
+  0x86: 0x2020, 0x87: 0x2021, 0x88: 0x02C6, 0x89: 0x2030, 0x8A: 0x0160,
+  0x8B: 0x2039, 0x8C: 0x0152, 0x8E: 0x017D, 0x91: 0x2018, 0x92: 0x2019,
+  0x93: 0x201C, 0x94: 0x201D, 0x95: 0x2022, 0x96: 0x2013, 0x97: 0x2014,
+  0x98: 0x02DC, 0x99: 0x2122, 0x9A: 0x0161, 0x9B: 0x203A, 0x9C: 0x0153,
+  0x9E: 0x017E, 0x9F: 0x0178
+};
+
+// Decode a Windows-1252 (ANSI) buffer to a JS string.
+function decodeWindows1252(buffer) {
+  let result = '';
+  for (const byte of buffer) {
+    result += String.fromCharCode(byte >= 0x80 && byte <= 0x9F ? (CP1252_HIGH[byte] || byte) : byte);
+  }
+  return result;
+}
+
+// Convert a file to a UTF-8 (without BOM) buffer held in RAM.
+// Detects UTF-8/UTF-16 BOMs; otherwise keeps valid UTF-8 as-is or falls back to
+// Windows-1252 (Windows ANSI). Returns a Buffer, or null when no conversion was needed.
+function convertFileToUtf8(filePath) {
+  const buffer = fs.readFileSync(filePath);
+  let text;
+
+  if (buffer.length >= 3 && buffer[0] === 0xEF && buffer[1] === 0xBB && buffer[2] === 0xBF) {
+    text = buffer.toString('utf8', 3); // strip existing UTF-8 BOM
+  } else if (buffer.length >= 2 && buffer[0] === 0xFF && buffer[1] === 0xFE) {
+    text = buffer.toString('utf16le', 2);
+  } else if (buffer.length >= 2 && buffer[0] === 0xFE && buffer[1] === 0xFF) {
+    text = buffer.swap16().toString('utf16le', 2);
+  } else if (isValidUtf8(buffer)) {
+    return null; // already UTF-8 without BOM, nothing to do
+  } else {
+    text = decodeWindows1252(buffer); // Windows ANSI (CP1252)
+  }
+
+  return Buffer.from(text, 'utf8');
+}
+
 function postBufferToTransferTarget(url, body, headers, config, onRequest = () => {}) {
   return new Promise((resolve, reject) => {
     const parsedUrl = new URL(url);
@@ -138,48 +186,75 @@ async function postChunkWithRetry({ url, chunk, headers, config, upload, chunkIn
 
 async function uploadFileInChunks({ url, filePath, remoteFileName, remotePath, transferId, config, upload, onProgress, onRetry }) {
   const fileSize = fs.statSync(filePath).size;
-  const configuredChunkSize = Number(config.chunkSizeBytes);
-  const chunkSize = Number.isSafeInteger(configuredChunkSize) && configuredChunkSize > 0
-    ? configuredChunkSize
-    : 1048576;
+  const chunkSize = resolveChunkSize(config);
   const readStream = fs.createReadStream(filePath, { highWaterMark: chunkSize });
-  let offset = 0;
-  let chunkIndex = 0;
 
   upload.readStream = readStream;
 
   try {
-    for await (const chunk of readStream) {
-      if (upload.cancelled) throw new Error('Upload cancelled');
-
-      const finalChunk = offset + chunk.length >= fileSize;
-      const headers = {
-        'Content-Type': config.contentType || 'application/octet-stream',
-        fileName: toHttpHeaderValue(remoteFileName),
-        remotePath: toHttpHeaderValue(remotePath),
-        transferId,
-        chunkOffset: offset.toString(),
-        chunkIndex: chunkIndex.toString(),
-        fileSize: fileSize.toString(),
-        finalChunk: finalChunk ? '1' : '0'
-      };
-
-      await postChunkWithRetry({
-        url,
-        chunk,
-        headers,
-        config,
-        upload,
-        chunkIndex,
-        onRetry
-      });
-
-      offset += chunk.length;
-      chunkIndex += 1;
-      onProgress(offset, fileSize, chunkIndex);
-    }
+    await sendChunks({
+      url, chunks: readStream, fileSize, remoteFileName, remotePath,
+      transferId, config, upload, onProgress, onRetry
+    });
   } finally {
     upload.readStream = null;
+  }
+}
+
+// Chunk a buffer that already lives in RAM (e.g. a converted file), avoiding a temp file.
+function* iterateBuffer(buffer, chunkSize) {
+  for (let offset = 0; offset < buffer.length; offset += chunkSize) {
+    yield buffer.subarray(offset, offset + chunkSize);
+  }
+}
+
+async function uploadBufferInChunks({ url, buffer, remoteFileName, remotePath, transferId, config, upload, onProgress, onRetry }) {
+  await sendChunks({
+    url, chunks: iterateBuffer(buffer, resolveChunkSize(config)), fileSize: buffer.length,
+    remoteFileName, remotePath, transferId, config, upload, onProgress, onRetry
+  });
+}
+
+function resolveChunkSize(config) {
+  const configuredChunkSize = Number(config.chunkSizeBytes);
+  return Number.isSafeInteger(configuredChunkSize) && configuredChunkSize > 0
+    ? configuredChunkSize
+    : 1048576;
+}
+
+// Post an iterable/stream of chunks to the transfer target sequentially.
+async function sendChunks({ url, chunks, fileSize, remoteFileName, remotePath, transferId, config, upload, onProgress, onRetry }) {
+  let offset = 0;
+  let chunkIndex = 0;
+
+  for await (const chunk of chunks) {
+    if (upload.cancelled) throw new Error('Upload cancelled');
+
+    const finalChunk = offset + chunk.length >= fileSize;
+    const headers = {
+      'Content-Type': config.contentType || 'application/octet-stream',
+      fileName: toHttpHeaderValue(remoteFileName),
+      remotePath: toHttpHeaderValue(remotePath),
+      transferId,
+      chunkOffset: offset.toString(),
+      chunkIndex: chunkIndex.toString(),
+      fileSize: fileSize.toString(),
+      finalChunk: finalChunk ? '1' : '0'
+    };
+
+    await postChunkWithRetry({
+      url,
+      chunk,
+      headers,
+      config,
+      upload,
+      chunkIndex,
+      onRetry
+    });
+
+    offset += chunk.length;
+    chunkIndex += 1;
+    onProgress(offset, fileSize, chunkIndex);
   }
 }
 
@@ -197,11 +272,6 @@ app.post('/api/cancel-upload', (req, res) => {
     upload.cancelled = true;
     if (upload.readStream) upload.readStream.destroy(new Error('Upload cancelled'));
     if (upload.request) upload.request.destroy(new Error('Upload cancelled'));
-    
-    // Clean up temp file if this upload used one.
-    if (upload.tempFilePath && fs.existsSync(upload.tempFilePath)) {
-      fs.unlinkSync(upload.tempFilePath);
-    }
     
     // Remove from active uploads
     activeUploads.delete(uploadId);
@@ -333,7 +403,7 @@ app.get('/api/list', (req, res) => {
 // Stream selected file to the PLC over HTTPS using static config.
 // Returns a Server-Sent Events stream for progress and retry updates.
 app.post('/api/save-to-https-static', async (req, res) => {
-  const { filePath, targetFolder = '' } = req.body || {};
+  const { filePath, targetFolder = '', convertToUtf8 = false } = req.body || {};
 
   if (!filePath) return res.status(400).json({ error: 'Missing filePath' });
   if (!staticTransferConfig || !staticTransferConfig.host) {
@@ -352,6 +422,16 @@ app.post('/api/save-to-https-static', async (req, res) => {
   const uploadUrl = buildTransferUrl(staticTransferConfig, uploadPath);
   const upload = { fileName, request: null, readStream: null, cancelled: false };
 
+  // Convert to UTF-8 up front when requested; the converted bytes stay in RAM.
+  let convertedBuffer = null;
+  if (convertToUtf8) {
+    try {
+      convertedBuffer = convertFileToUtf8(filePath);
+    } catch (err) {
+      return res.status(500).json({ error: 'Failed to convert file to UTF-8: ' + err.message });
+    }
+  }
+
   activeUploads.set(uploadId, upload);
 
   res.setHeader('Content-Type', 'text/event-stream');
@@ -367,11 +447,11 @@ app.post('/api/save-to-https-static', async (req, res) => {
   const transferId = `${Date.now()}-${uploadId}`;
 
   try {
-    sendProgress({ type: 'start', uploadId, fileSize: stats.size, remotePath, transferId });
+    const sourceSize = convertedBuffer ? convertedBuffer.length : stats.size;
+    sendProgress({ type: 'start', uploadId, fileSize: sourceSize, remotePath, transferId });
 
-    await uploadFileInChunks({
+    const uploadArgs = {
       url: uploadUrl,
-      filePath,
       remoteFileName,
       remotePath,
       transferId,
@@ -384,7 +464,13 @@ app.post('/api/save-to-https-static', async (req, res) => {
       onRetry: (data) => {
         sendProgress({ type: 'retry', ...data });
       }
-    });
+    };
+
+    if (convertedBuffer) {
+      await uploadBufferInChunks({ ...uploadArgs, buffer: convertedBuffer });
+    } else {
+      await uploadFileInChunks({ ...uploadArgs, filePath });
+    }
 
     sendProgress({ type: 'complete', success: true, remotePath });
     res.end();

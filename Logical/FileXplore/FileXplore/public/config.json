@@ -2,6 +2,7 @@
   "server": "localhost",
   "serverPort": 5000,
   "supportedFileExtensions": [".txt", ".cnc", ".pptx"],
+  "ForceConvertToUTF8": [".txt"],
   "defaultPaths": {
     "C:\\": "C:\\Temp\\TestFileX",
     "D:\\": "D:\\Temp_TestFileX",

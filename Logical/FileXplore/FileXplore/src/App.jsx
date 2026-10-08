@@ -4,6 +4,7 @@ import { appVersion } from './version'
 
 // Configuration will be loaded dynamically
 let SUPPORTED_FILE_EXTENSIONS = [];
+let FORCE_CONVERT_TO_UTF8 = [];
 let DEFAULT_PATHS = {};
 let API_BASE_URL = 'http://localhost:5000';
 
@@ -104,6 +105,7 @@ function FileExplorer({ onOpenFile }) {
   const [lastTransferredFile, setLastTransferredFile] = useState(null);
   const [uploadProgress, setUploadProgress] = useState(null);
   const [currentXhr, setCurrentXhr] = useState(null);
+  const [reloadToken, setReloadToken] = useState(0);
 
   // Check if a path is allowed based on DEFAULT_PATHS configuration
   function isPathAllowed(path) {
@@ -223,7 +225,7 @@ function FileExplorer({ onOpenFile }) {
       });
     // Save last opened path
     localStorage.setItem('lastExplorerPath', currentPath);
-  }, [currentPath, initialized]);
+  }, [currentPath, initialized, reloadToken]);
 
   function handleOpenDir(item) {
     if (item.isDirectory) safeSetCurrentPath(item.path);
@@ -333,6 +335,8 @@ function FileExplorer({ onOpenFile }) {
                         if (currentDrive && DEFAULT_PATHS[currentDrive]) {
                           // Navigate to the configured default path for the current drive
                           safeSetCurrentPath(DEFAULT_PATHS[currentDrive]);
+                          // Force a reload even if already at the default path
+                          setReloadToken(t => t + 1);
                         } else if (filteredDrives.length > 0) {
                           // Fallback: go to first available drive
                           const firstDrive = filteredDrives[0].path;
@@ -346,6 +350,14 @@ function FileExplorer({ onOpenFile }) {
                     title="Refresh and go to default path"
                   >
                     🏠 Home
+                  </button>
+
+                  <button
+                    className="up-btn"
+                    onClick={() => setReloadToken(t => t + 1)}
+                    title="Reload the current folder"
+                  >
+                    🔄 Refresh
                   </button>
                   
                   <select 
@@ -504,6 +516,7 @@ function App() {
           throw new Error('Invalid config.json: defaultPaths cannot be empty');
         }
         SUPPORTED_FILE_EXTENSIONS = config.supportedFileExtensions;
+        FORCE_CONVERT_TO_UTF8 = config.ForceConvertToUTF8 || [];
         DEFAULT_PATHS = config.defaultPaths;
         // Set API base URL from config
         const server = config.server || 'localhost';
@@ -532,10 +545,12 @@ function App() {
     
     try {
       const fileName = selectedPath.split('\\').pop();
+      const lowerName = fileName.toLowerCase();
+      const convertToUtf8 = FORCE_CONVERT_TO_UTF8.some(ext => lowerName.endsWith(ext.toLowerCase()));
       const uploadResponse = await fetch(`${API_BASE_URL}/api/save-to-https-static`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ filePath: selectedPath, targetFolder: targetFolder || '' }),
+        body: JSON.stringify({ filePath: selectedPath, targetFolder: targetFolder || '', convertToUtf8 }),
         signal: controller.signal
       });
       
