@@ -2,6 +2,10 @@
 
 All notable changes to FileXplorer are documented here.
 
+## [2.0.4] - 2026-10-27
+- Fixed `serve-dist.js` failing to start: converted to ES module syntax (root package is `"type": "module"`) and updated the catch-all route to Express 5 syntax (`/{*splat}`).
+- Removed unused `cors` and `body-parser` dependencies from the frontend `package.json` (they remain in `server/package.json`).
+
 ## [2.0.3] - 2026-10-23
 - Security: ran `npm audit fix` on the server dependencies to resolve reported vulnerabilities (updated `server/package-lock.json`).
 

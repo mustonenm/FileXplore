@@ -44,10 +44,13 @@ This application is intended to run in **B&R mappView** environments where:
 │   ├── App.jsx              # Main React application
 │   ├── App.css              # Application styles
 │   └── main.jsx             # React entry point
+├── serve-dist.js            # Local test server for the production build
 └── dist/                    # Production build output
 ```
 
 ## Getting Started
+
+Requires Node.js 20.19+ or 22.12+ (current LTS recommended). Run `npm install` in both the project root and `server/` before first use.
 
 ### Backend Server (Panel PC or Host Platform)
 The Node.js backend should run on a Panel PC or any platform with access to the local file system containing the files to be transferred.
@@ -70,7 +73,7 @@ Development server runs on `http://localhost:5173`
 npm run build
 node serve-dist.js
 ```
-Serves production build on `http://localhost:3000`
+Serves production build on `http://localhost:3000` for local testing only (`npm run preview` works as well). It is not needed once deployed.
 
 The `dist` folder can be deployed to the mappView project.
 
@@ -189,7 +192,7 @@ Check if the service is running by accessing `http://localhost:5000/api/drives` 
 
 ## Technologies
 
-- **Frontend**: React 18, Vite, CSS (deployable to B&R mappView HTML )
+- **Frontend**: React 19, Vite 6, CSS (deployable to B&R mappView HTML ) (deployable to B&R mappView HTML )
 - **Backend**: Node.js, Express (runs on Panel PC or host platform)
 - **Transfer**: Node.js native HTTPS chunk upload client
 - **Progress Tracking**: Server-Sent Events (SSE)

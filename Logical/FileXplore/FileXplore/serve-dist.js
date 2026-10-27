@@ -1,6 +1,9 @@
 // Simple server to serve the dist folder
-const express = require('express');
-const path = require('path');
+import express from 'express';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const app = express();
 const PORT = 3000;
@@ -9,7 +12,7 @@ const PORT = 3000;
 app.use(express.static(path.join(__dirname, 'dist')));
 
 // Serve index.html for all routes (SPA support)
-app.get('*', (req, res) => {
+app.get('/{*splat}', (req, res) => {
   res.sendFile(path.join(__dirname, 'dist', 'index.html'));
 });
 
